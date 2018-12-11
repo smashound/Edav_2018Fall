@@ -1,0 +1,547 @@
+---
+title: "Final Report"
+author: "Xiaowei Zhao(xz2767), Zhengdong Wang, Yinheng Li, Yijie Cao"
+date: "2018/12/08"
+output: html_document
+---
+
+### 1. Introduction
+
+### 2. Description of Data
+#### Dataset **Storm Data**
+This dataset summarizes the
+
+
+* This dataset consists of following features: 
+    + BEGIN_YEARMONTH: 
+    + BEGIN_DAY	
+    + BEGIN_TIME	
+    + END_YEARMONTH	
+    + END_DAY	
+    + END_TIME	
+    + STATE	
+    + YEAR	
+    + MONTH_NAME: Name of the month for the event in this record (spelled out; not abbreviated)	
+    + EVENT_TYPE: Ex: Hail, Thunderstorm Wind, Snow, Ice (spelled out; not abbreviated)
+    + CZ_TYPE: Ex: C, Z , M, Indicates whether the event happened in a (C) county/parish, (Z) zone or (M) marine
+    + BEGIN_DATE_TIME: The time which specific event begins	
+    + CZ_TIMEZONE: Eastern Standard Time (EST), Central Standard Time (CST), Mountain Standard Time (MST), etc.
+    + END_DATE_TIME: The time which specific event ends	
+    + INJURIES_DIRECT: The number of injuries directly related to the weather event	
+    + INJURIES_INDIRECT: The number of injuries indirectly related to the weather event	
+    + DEATHS_DIRECT: The number of deaths directly related to the weather event
+    + DEATHS_INDIRECT: The number of deaths indirectly related to the weather event.
+    + DAMAGE_PROPERTY: The estimated amount of damage to property incurred by the weather event.	
+    + DAMAGE_CROPS: The estimated amount of damage to crops incurred by the weather event
+    + MAGNITUDE: Measured extent of the magnitude type ~ only used for wind speeds and hail size 	
+    + MAGNITUDE_TYPE: EG = Wind Estimated Gust; ES = Estimated Sustained Wind; MS = Measured Sustained Wind; MG = Measured Wind Gust (no magnitude is included for instances of hail)
+    + FLOOD_CAUSE: Reported or estimated cause of the flood
+
+#### Dataset **Storm Data over years**
+
+????Ҫ??д??
+
+### 3. Analysis of Data Quality
+```{r readfile_Data Quality}
+
+```
+
+????Ҫ??д??
+
+### 4. Main analysis (Exploratory Data Analysis)
+#### Death and Injuries
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE,
+                      message = FALSE)
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(scales)
+library(ggridges)
+library(gridExtra)
+library(boot)
+library(RColorBrewer)
+library(lubridate) 
+library(leaflet)
+
+```
+**The number of death and injuries directly related to the weather event**
+```{r warning = FALSE, error = FALSE, message = FALSE, fig.height=10, fig.width=10}
+data=read.csv('injury_death.csv')
+ggplot(data,aes(x=reorder(EVENT_TYPE, INJURIES_DEATH, median),y=INJURIES_DEATH,group=EVENT_TYPE)) +
+  geom_boxplot() +
+  scale_y_continuous(labels=comma) +
+  coord_flip(ylim=c(0,70)) +
+  ggtitle('The number of injuries and death group by event type') 
+
+
+```
+
+Here, the above graph is box plots on direct&indirect injuries and death for different event type (Ex: Hail, Thunderstorm Wind, Snow, Ice) and order them by mdedian injuries and death number. As can be seen in the above graph, injuries and death caused by Lake-Effect Snow has the highest mdeian value. The top five injuries and death for median are Lake-Effect Snow, Waterspout, ice storm, heat and excessive heat. Also, we can observe that the number of injuries has some extreme value with tornado and hurricane, which may infer that tornado and hurricane are more relatively dangerous.
+
+**The number of death and injuries directly related to the state**
+```{r warning = FALSE, error = FALSE, message = FALSE, fig.height=10, fig.width=10}
+state_data = data %>% group_by(STATE) %>% summarise(value=sum(INJURIES_DEATH))
+state=data.frame(region =state_data$STATE,value=state_data$value)
+state$region=tolower(state$region)
+ggplot(state,aes(x=reorder(region,value),y=value)) +
+  geom_bar(stat = 'identity',fill='darkslateblue') +
+  geom_text(aes(label = round(value,3),hjust=-0.5), size = 3.5) +
+  xlab("State") + 
+  ylab("Injuries and Death") +
+  coord_flip() +
+  ggtitle('2017 Injuries abd Death by State') +
+  theme(axis.title.x = element_text(size = 15, family = "myFont", face = "bold"),axis.title.y = element_text(size = 15, family = "myFont", face = "bold"),axis.text=element_text(size=8,vjust = 0.5, hjust = 0.5, angle = 0))
+  
+
+```
+
+The bar plot above show the exact number of death and injuries for each state. We can see here that Colorado has the highest number of 511 death and injuries people while Vermontand Maine has the lowest number of only one.
+
+**The number of death and injuries directly related to the month**
+```{r warning = FALSE, error = FALSE, message = FALSE,fig.height=10, fig.width=10}
+theme_dotplot=theme_bw(18) +
+    theme(axis.text.y = element_text(size = rel(.75)),
+          axis.ticks.y = element_blank(),
+          axis.title.x = element_text(size = rel(.75)),
+          panel.grid.major.x = element_blank(),
+          panel.grid.major.y = element_line(size = 0.5),
+          panel.grid.minor.x = element_blank())
+injury_by_month=data %>% group_by(MONTH_NAME) %>% 
+  summarize(number_of_event = n())
+ggplot(injury_by_month,aes(x=number_of_event,y=reorder(MONTH_NAME,number_of_event))) + 
+         geom_point(col='blue',size=3) +
+         theme_dotplot +
+         ggtitle('The number of event triggering injuries and death group by months')
+
+```
+
+The above graph is the dot plot about the number of event triggering injuries and death group by 12 months and I sort it by number. As can be seen in the graph, total number of event in January is the highest amoung 12 months. We can infer that January is the month where natural disaster most frequently occurs. Similarly, we can predict that November is the most peaceful time. Also, we can infer that January, July and August are top 3 dangerous month in a year.
+
+### zhednong added
+#### Duration Analysis
+The data includes multiple kinds of weather events in the US. Differernt kinds of weather event will have significantly different duration time. The duration time is computed by the start time and end time of each observation and counted in minutes. Hence, according to the event type, draw the below histograms. Since that the range of duration differs too much, we have to free the scales for each plot. Each histogram can be easily reached in our shiny app #IP address.
+**The histogram of duration for each event type**
+```{r warning = FALSE, error = FALSE, message = FALSE,fig.height=10, fig.width=10}
+data_withevent = read.csv("./Data/duration_histogram_data.csv")
+
+ggplot(data_withevent, aes(DURATION)) +
+  geom_histogram(bins = 60, fill = "lightblue", color = "blue") +
+  ggtitle("Histogram of Duration by Event type")+
+  theme(plot.title = element_text(hjust = 0.5)) +
+  ylab("Frequency")+
+  facet_wrap(~EVENT_TYPE, scales = "free")
+```
+
+In order to know the average duration for each kind of event, I draw the ClevelandDotPlot to show duration differences between each other. 
+**The difference of the mean of duration**
+```{r warning = FALSE, error = FALSE, message = FALSE,fig.height=10, fig.width=10}
+duration_mean_event = read.csv("./Data/duration_mean_data.csv")
+theme_dotplot <- theme_bw(15) +
+    theme(axis.text.y = element_text(size = rel(.75)),
+          axis.ticks.y = element_blank(),
+          axis.title.x = element_text(size = rel(.75)),
+          panel.grid.major.x = element_blank(),
+          panel.grid.major.y = element_line(size = 0.5),
+          panel.grid.minor.x = element_blank())+
+  theme(plot.title = element_text(hjust = 0.5))
+
+ggplot(duration_mean_event) +
+  geom_point(aes(mean, fct_reorder(EVENT_TYPE, mean)), size = 2, alpha = 0.8, color = "blue") +
+  theme_dotplot +
+  ylab("EVENT_TYPE")+
+  xlab("Mean of Duration") + 
+  ggtitle("Mean of Duration over Event_types")
+```
+From the plot we can see that drought and flood usually last for long time, approximately 20-30 days. However, Wind, Hail and Tornado usually last for short time. For Tornado, the data includes any small Tornado which might influence the mean of the duration. 
+Based on the mean distribution, we can classify the event into four groups, short, short-medium, medium-long and long duration. For each group, draw the below boxplot to see the difference of each group. 
+```{r warning = FALSE, error = FALSE, message = FALSE,fig.height=10, fig.width=10}
+data_withevent = read.csv("./Data/duration_boxplot_data.csv")
+
+h1 <- ggplot(data_withevent[data_withevent$dlevel == "d1",], aes(reorder(EVENT_TYPE, -DURATION, FUN = median), DURATION)) +
+  geom_boxplot(aes(group = EVENT_TYPE), fill = "lightgray", color = "black") +
+  ggtitle("Histogram of Duration")+
+  xlab("EVENT_TYPE")+
+  ylab("DURATION")+
+  theme(plot.title = element_text(hjust = 0.5)) +
+  ylim(0,20)+
+  coord_flip()
+h2 <- ggplot(data_withevent[data_withevent$dlevel == "d2",], aes(reorder(EVENT_TYPE, -DURATION, FUN = median), DURATION)) +
+  geom_boxplot(aes(group = EVENT_TYPE), fill = "lightgray", color = "black") +
+  ggtitle("Histogram of Duration")+
+  xlab("EVENT_TYPE")+
+  ylab("DURATION")+
+  theme(plot.title = element_text(hjust = 0.5)) +
+  ylim(0,1000)+
+  coord_flip()
+h3 <- ggplot(data_withevent[data_withevent$dlevel == "d3",], aes(reorder(EVENT_TYPE, -DURATION, FUN = median), DURATION)) +
+  geom_boxplot(aes(group = EVENT_TYPE), fill = "lightgray", color = "black") +
+  ggtitle("Histogram of Duration")+
+  xlab("EVENT_TYPE")+
+  ylab("DURATION")+
+  theme(plot.title = element_text(hjust = 0.5)) +
+  ylim(0,4000)+
+  coord_flip()
+h4 <- ggplot(data_withevent[data_withevent$dlevel == "d4",], aes(reorder(EVENT_TYPE, -DURATION, FUN = median), DURATION)) +
+  geom_boxplot(aes(group = EVENT_TYPE), fill = "lightgray", color = "black") +
+  ggtitle("Histogram of Duration")+
+  xlab("EVENT_TYPE")+
+  ylab("DURATION")+
+  theme(plot.title = element_text(hjust = 0.5)) +
+  ylim(0,70000)+
+  coord_flip()
+grid.arrange(h1,h2,h3,h4,ncol = 1)
+
+```
+**The duration time directly related to the injuries and deaths**
+```{r}
+data_withinjure = read.csv("./Data/duration_injure_data.csv")
+ggplot(data_withinjure, aes(DURATION, INJURE_DEATH)) +
+  geom_point(size = 1, alpha = 0.5) +
+  facet_wrap(~EVENT_TYPE, scales = "free") +
+  theme_classic(6.5) +
+  geom_smooth(method = "lm", se = FALSE,size = 0.5, color = "red") +
+  geom_density_2d(alpha = 0.6) +
+  ylab("Injures and Deaths") +
+  ggtitle("Relationship between duration and injures and deaths")+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+Seen from the facet graph, usually the longer the duration was, the more injuries and deaths happened. The relationship also differs by event type. 
+
+#### Magnitude Analysis
+Since only a few kinds of event can be measured by magnigtude. We choose "Hail", "Strong Wind", "High Wind", "Marine Thunderstorm Wind" and "Thunderstorm Wind" for analysis. Draw the histogram of magnitude of the five kinds of events. 
+```{r}
+data_withmagnitude = read.csv("./Data/magnitude_histogram_data.csv")
+ggplot(data_withmagnitude, aes(MAGNITUDE)) +
+  geom_histogram(bins = 60, fill = "lightblue", color = "blue") +
+  ggtitle("Histogram of Magnitude")+
+  theme(plot.title = element_text(hjust = 0.5)) +
+  ylab("Frequency")+
+  facet_wrap(~EVENT_TYPE, scales = "free")
+```
+Analyze the mean of the magnitude of the five kinds of event type
+```{r}
+magnitude_mean_event = read.csv("./Data/magnitude_mean_data.csv")
+ggplot(magnitude_mean_event) +
+  geom_point(aes(mean, fct_reorder(EVENT_TYPE, mean)), size = 2, alpha = 0.8, color = "blue") +
+  theme_dotplot +
+  ylab("EVENT_TYPE")+
+  xlab("Mean of Magnitude") + 
+  ggtitle("Mean of Magnitude over Event_types")
+```
+Seen from the graph, usually "Thunderstorm Wind" has the highest magnitude, while "Hail" has the lowest magnitude. 
+
+
+#### Tornado
+Bseides, we did an insteresting topic related to "Tornado" event. Fist, we analyze the occurrence of Tornado over states. 
+
+```{r}
+Tornado_state = read.csv("./Data/Tornado_state.csv")
+ggplot(Tornado_state,aes(x=reorder(region,value),y=value)) +
+  geom_bar(stat = 'identity',fill='darkslateblue') +
+  geom_text(aes(label = round(value,3),hjust=-0.2), size = 3) +
+  xlab("State") + 
+  ylab("Frequency of Tornado") +
+  coord_flip() +
+  ggtitle('Tornado distribution over US')+
+  theme(axis.title.x = element_text(size = 12, face = "bold"),axis.title.y = element_text(size = 15, face = "bold"),axis.text=element_text(size=6,vjust = 0.5, hjust = 0.5, angle = 0))
+```
+Spatial distribution,
+```{r}
+g <- list(
+  scope = 'usa',
+  projection = list(type = 'albers usa')
+  
+)
+plot_geo(Tornado_state, locationmode = 'USA-states') %>%
+  add_trace(
+    z = ~value, locations = ~code,
+    color = ~value, colors = colorRampPalette(brewer.pal(11,"RdPu"))(100)
+  ) %>%
+  colorbar(title = "Frequency") %>%
+  layout(
+    title = '2017 USA Tornado Frequency by State',
+    geo = g
+  )
+```
+
+Hence, Tornado happens most frequently in TEXAS, GEORGIA, OKLAHOMA, and LOUISIANA.
+
+
+#### EJ
+
+```{r}
+data = read.csv("./StormEvents_details-ftp_v1.0_d2017_c20181017.csv")
+a=as.numeric(sub("K", "e3", data$DAMAGE_PROPERTY, fixed = TRUE))
+b=as.numeric(sub("M", "e6", data$DAMAGE_PROPERTY, fixed = TRUE))
+a[is.na(a)]=b[is.na(a)]
+data$DAMAGE_PROPERTY=a
+data$DAMAGE_PROPERTY[is.na(data$DAMAGE_PROPERTY)]=0
+
+a=as.numeric(sub("K", "e3", data$DAMAGE_CROPS, fixed = TRUE))
+b=as.numeric(sub("M", "e6", data$DAMAGE_CROPS, fixed = TRUE))
+a[is.na(a)]=b[is.na(a)]
+data$DAMAGE_CROPS=a
+data$DAMAGE_CROPS[is.na(data$DAMAGE_CROPS)]=0
+data = data[data$DAMAGE_PROPERTY!=0,]
+
+data$code = state.abb[match(data$STATE,toupper(state.name))]
+
+data = data[complete.cases(data$code),]
+data$LOG_DAMAGE_PROPERTY = log10(data$DAMAGE_PROPERTY)
+
+data$BEGIN_DATE_TIME = dmy_hms(data$BEGIN_DATE_TIME)
+
+```
+We parse K/M to numbers and delete 0 values since we care about event that cause property damage. Transforming the damage amount to log10 based, we can see more clearly the detail of each graph. (Also cleaned and transformed damage of crops for later use)
+
+#Property damage by state in map
+```{r}
+df <- aggregate(data$DAMAGE_PROPERTY,by=list(code=data$code), FUN=sum)
+df$logx = log10(df$x)
+l <- list(color = toRGB("white"), width = 2)
+g <- list(
+  scope = 'usa',
+  projection = list(type = 'albers usa')
+  
+)
+
+p1 <- plot_geo(df, locationmode = 'USA-states') %>%
+  add_trace(
+    z = ~logx, text = ~paste("Property Damage:", x), locations = ~code,
+    color = ~logx, colors = 'Purples'
+  ) %>%
+  colorbar(title = "10^ USD") %>%
+  layout(
+    title = '2017 USA Storm Damage by State',
+    geo = g
+  )
+
+p1
+```
+In this graph, we used heat map to show log property damage amount by state. It clearly shows coastal areas tend to have the more property damage than continental areas. CA, TX, FL are the three states that have the highest property damage.
+
+
+
+
+#Property damage vs Crop damage log based
+```{r}
+df = data[data$DAMAGE_CROPS!=0,]
+df$LOG_DAMAGE_CROPS = log10(df$DAMAGE_CROPS)
+p3 <- ggplot(df, aes(LOG_DAMAGE_CROPS, LOG_DAMAGE_PROPERTY)) + geom_point(alpha = .4) + geom_density_2d(bins = 30)+stat_smooth(method = "lm", col = "red")
+ggplotly(p3)
+
+```
+We thought that the log property damage and log crop damage may have a linear relationship. Thus, we ploted them in a graph and fit a linear model on it. The graph confirmed our assumption. There is a strong linear relation between log property damage and log crop damage. From the density contours, we can see that the data points highly concentrate on some clusters.
+
+```{r}
+p3 <- plot_ly(
+  df, x = ~LOG_DAMAGE_PROPERTY, y = ~LOG_DAMAGE_CROPS,
+  text = ~paste("Property Damage: ", DAMAGE_PROPERTY, '$<br>Crop Damage:', DAMAGE_CROPS),
+  color = ~LOG_DAMAGE_PROPERTY, size = ~LOG_DAMAGE_PROPERTY
+)
+p3
+
+```
+In this graph, we can more clearly see the data points in an equal scale.
+
+#Property damage by month
+```{r}
+accumulate_by <- function(dat, var) {
+  var <- lazyeval::f_eval(var, dat)
+  lvls <- plotly:::getLevels(var)
+  dats <- lapply(seq_along(lvls), function(x) {
+    cbind(dat[var %in% lvls[seq(1, x)], ], frame = lvls[[x]])
+  })
+  dplyr::bind_rows(dats)
+}
+ag = aggregate(data$DAMAGE_PROPERTY,by=list(Category=data$MONTH_NAME), FUN=sum)
+ag$Category = factor(ag$Category, levels = month.name)
+ag = ag[order(ag$Category),]
+ag$ID <- seq.int(nrow(ag))
+
+ag = ag %>% accumulate_by(~ID)
+
+p4 <- ag %>%
+  plot_ly(
+    x = ~Category, 
+    y = ~x,
+    frame = ~frame,
+    type = 'scatter',
+    mode = 'lines', 
+    line = list(simplyfy = F)
+  ) %>% 
+  layout(
+    xaxis = list(
+      title = "Date",
+      zeroline = F
+    ),
+    yaxis = list(
+      title = "Property Damage",
+      zeroline = F
+    )
+  ) %>% 
+  animation_opts(
+    frame = 100, 
+    transition = 50, 
+    redraw = FALSE
+  ) %>%
+  animation_slider(
+
+    )%>%
+  animation_button(
+    x = 1, xanchor = "right", y = 0, yanchor = "bottom"
+  )
+p4
+
+```
+In this animated graph, we illustrate the total property damage by month. There is a spike in August and September, which we think is probably because it's the season for hurricane. The peak is in August with 7.35 billion loss, which is about 30 times more than in July.
+
+#### Inhenn
+
+????Ҫ??д??
+
+### 5 Executive summary
+#### Death and Inuries
+The spatial visualization is one of the most macroscopic ways for us to draw the insight of the number of death and injuries crossing 50 states. The bar charts above can only be able to show the ranking of the number of death and injuries by giving us the name of state while the map is able to illustrate on the spatial variations.
+```{r warning = FALSE, error = FALSE, message = FALSE, fig.height=10, fig.width=10}
+library(choroplethr)
+library(choroplethrMaps)
+state_choropleth(state, title="2017 Injuries abd Death by State", legend="Injuries and Death")
+
+```
+As can be seen in the above map about the number of death and injuries by state, CA, NV, CO, TX, MO, GA, FL have the relatively higher death and injuries number among all the state and they locate in the range of [125,511]. In the meantime, ID, WY, ND, VT, ME have the relatively lower death and injuries number among all the state and they locate in the range of [1,4].
+
+
+### Zhengdong added
+
+Analyzing the mean of injuries and deaths of each event type, we have the below graph. 
+```{r warning = FALSE, error = FALSE, message = FALSE, fig.height=5, fig.width=10}
+injure_mean_event = read.csv("./Data/injure_mean_event.csv")
+ggplot(injure_mean_event) +
+  geom_point(aes(mean, fct_reorder(EVENT_TYPE, mean)), size = 2, alpha = 0.8, color = "blue") +
+  theme_dotplot +
+  ylab("EVENT_TYPE")+
+  xlab("Mean of Injures and Deaths") + 
+  ggtitle("Mean of Injures and deaths over Event_types")
+```
+Seen from the graph, we can see that "Hurricanne", "Excessive Heat" and "Tornado" causes a lot of injuries and deaths. "Flood" and "Wind" usually causes small amoung of injuries and deaths. 
+
+
+
+**The duration time directly related to the magnitude**
+```{r}
+data_withmagnitude = read.csv("./Data/duration_magnitude_data.csv")
+ggplot(data_withmagnitude, aes(DURATION, MAGNITUDE)) +
+  geom_point(size = 1, alpha = 0.25) +
+  facet_wrap(~EVENT_TYPE, scales = "free") +
+  theme_classic(8) +
+  geom_smooth(method = "lm",size = 0.5, color = "red") +
+  geom_density_2d(alpha = 0.6) +
+  ylab("MAGNITUDE") +
+  ggtitle("Relationship between Duration and Magnitude")+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+From the scatter plots, we can see that for the five kinds of event, duration is positively related to magnitude. 
+
+#### EJ
+####Cluster on map 
+```{r}
+
+df = data[complete.cases(data$BEGIN_LAT),]
+df$LOG_DAMAGE_CROPS = log10(df$DAMAGE_CROPS)
+leaflet(df)%>% addTiles() %>% addMarkers(
+  ~BEGIN_LON,~BEGIN_LAT,popup = ~paste(BEGIN_DATE_TIME, EVENT_TYPE,"Property Damage:", DAMAGE_PROPERTY, sep = "<br />"),
+                                        
+  clusterOptions = markerClusterOptions()
+)
+
+
+```
+This graph shows all storm occurred by clusters in regions. Using zoom in, you can subset the clusters into smaller clusters in zoomed map. Finally, you can see each storm event on the map and click to see the detail of each event. This gives us a more clear view of the allocation of each storm event.
+
+
+????Ҫ??д??
+
+#### Inhenn
+
+????Ҫ??д??
+
+#### Some other interesting explorations
+```{r warning = FALSE, error = FALSE, message = FALSE, fig.width=15}
+flood=read.csv('flood.csv')
+ggplot(flood,aes(x=FLOOD_CAUSE,fill=EVENT_TYPE)) +
+  geom_bar(position = 'dodge') +
+  xlab('The cause of flood') +
+  ylab('The number of events') +
+  scale_fill_discrete(name = "Flood Type") +
+  theme(plot.title = element_text(size = 20),
+    legend.title=element_text(size=15), 
+    legend.text=element_text(size=15)) +
+  theme(text = element_text(size=15))+
+  theme(legend.position = 'bottom') +
+  theme(panel.background = element_blank()) +
+  ggtitle('The relationship between the cause and the type of flood')
+
+```
+
+We can see the graph here illustrating the relationship between the cause and the type of flood. Heavy rain seems to be the main cause of three types of flood, namely Debris Flow, Flash Flood and Flood.
+
+
+#### zhendong added
+```{r}
+Tornado_month_data = read.csv("./Data/Tornado_month_data.csv")
+
+ggplot(Tornado_month_data) +
+  geom_point(aes(value, fct_reorder(MONTH_NAME, value)), size = 2, alpha = 0.8, color = "blue") +
+  theme_dotplot +
+  ylab("Occuring Month")+
+  xlab("Frequency of Month") + 
+  ggtitle("2017 Monthly Frequency of Tornado")
+```
+From the dotplot, you can usually, Tornado happens most frequently in May and least frequently in December. 
+
+Furthermore, we draw the year trend of Tornado damage and frequency from 2000 to 2017. The dynamic graph can be seen in the link https://blockbuilder.org/Inhenn/dbf9c470f6f61d159a4c17c8c0356e85. 
+
+
+
+
+
+
+
+
+
+### 6 Interactive component
+
+### zhendong added
+In order to visuilize the analysis, we built a shiny app to intergrate all of our analysis and a d3 html for show the time series data. Shiny link: .... Html:link....
+Shiny link: https://edav-project-weather-event-analysis.shinyapps.io/WeatherEvent/
+Html link: 
+In Shiny, we built 6 tabs with "Event type", "Duration Analysis", "Magnitude Analysis", "Event Topics" and "Damage Summary". They use interactive components to show the data distribution. 
+### yijie
+In tab "Property damage analysis", under title "US Storm Property Damage by Factors", we listed for factors that we think are high associated with property damage. First, in event type analysis, we found tropical storm, hurricane and flood cause most of the property loss. Second, specific to tornado caused property loss, we found the f-scale has a positive relation with property damage except for EF4 which is the highest level in f-scale. In August and September, the storms cause more property damage.There are a couple states that have the most of the property loss, which includes TX, FL, CA and MI.
+Under title "US Storm Property Damage by State", we can see the log property damage histogram by each state. Some state don't have a pattern, most of the states have a normal or binormal pattern.
+Under title "Histogram of Log Property Damage with Changing Bins", we can change the bins in the property damage histogram to see how the distribution looks like in different bin width.
+
+### zhendong added
+In the Duration and Magnitude Analysis part, from the faceted histogram, we can see that different event type has significantly different duration time and magnitude. It is not convenient to put them in the same scales for comparison. It is better to built a choice for event type to show the exact histogram of duation or magnitude of that event type. Hence, we created the shiny histogram, where you choose which event type you like to see. Besides, on each event, the histogram can show in its own scale, which will show the exact distribution of the data.
+
+Moreover, in Duration Analysis, we have divided the event type into 4 groups based on duration time. It would better to create boxplots in the scale of each group. Hence, we created the boxplot with group choices in shiny app. Similarly, for convenience of choosing each event type, we changed the original scatter plot into shiny scatter plots with choice of event types. It is easier to see the relationship between casualties with duration of each event type.
+
+In the Tornado topic part, for better show the exact number of frequency of tornado of each state, we created the shiny choropleth map. In addition, we can analyze total damage, mean damage and frequency in one graph by choosing different options. We can easily see that in 2011 the damage of tornado reaches the peak value. 
+
+### 7 Conclusion
+
+### zhendong added
+Duration time for different events differs dramatically. According to our analysis, we divided the events into 4 groups based on duration time, which is showed in the above bosplot. 
+
+We tried to analyze the relationship between duaraion with injuries and deaths. We found that they are slightly correlated. For most events, they are positively related. More duration time means more injuries in the event.
+
+For weather events with property magnitude, duration is positively related to magnitude. Events with more duation time usually have larger magnitude. 
+
+For tornado topic, tornado happens more frequently in the middle and south area of the US, where Texas is the state with most tornado occurrences. The west land has very low frequency of tornado. Besides, tornado happens most in May, while least in December.
+
+### yijie
+
+In the analysis of property damage, we found the property damage is highly associated with location, crop damage, event type and time of the year. We found that costal regions are more suffered from property loss. Also, in August and Septembe, which are hurricane seasons, the storm are more frequently and cause more damage. Crop damage has a log linear relation with property damage, which makes sence and confirmed by the linear model. Tropical storm, hurricane and flood cause most of the property loss.
+
